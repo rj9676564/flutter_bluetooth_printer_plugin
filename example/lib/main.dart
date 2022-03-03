@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -19,101 +20,95 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   List<BluetoothDevice> _devices = [];
+  BluetoothDevice? bluetoothDevice;
 
   @override
   void initState() {
-    super.initState();
-    initPlatformState();
-  }
-
-  Future<void> initPlatformState() async {
-    scan();
-    if (!mounted) return;
-  }
-
-  BluetoothDevice? bluetoothDevice;
-  BluetoothPrinter bluetoothPrint = BluetoothPrinter();
-
-  scan() {
-    bluetoothPrint.startScan();
-    bluetoothPrint.scanResults.listen((List<BluetoothDevice> event) {
-      log(":==============${event.length}");
+    printer.scanResults.listen((List<BluetoothDevice> event) {
       setState(() {
         _devices = event;
       });
+      log(":==============");
+      for (BluetoothDevice device in event) {
+        log(device.name);
+        if (device.name == "BLU58") {
+          bluetoothDevice = device;
+        }
+      }
     });
+    super.initState();
   }
+
+  // Platform messages are asynchronous, so we initialize in an async method.
+  Future<void> startScan() async {
+    printer.startScan();
+  }
+
+  isEnable() async {
+    var result = await printer.isEnabled();
+    log("is enable $result");
+  }
+
+  BluetoothPrinter printer = BluetoothPrinter();
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin example app'),
-        ),
-        body: Column(
-          children: [
-            Row(
-              children: [
-                InkWell(
-                  onTap: () {
-                    scan();
+          appBar: AppBar(
+            title: const Text('Plugin example app'),
+          ),
+          body: Column(
+            children: [
+              TextButton(
+                onPressed: () => isEnable,
+                child: const Text('isEnable'),
+              ),
+              TextButton(
+                  onPressed: () => startScan(), child: const Text('startScan')),
+              TextButton(
+                  onPressed: () => printer.stopScan(),
+                  child: const Text('stopScan')),
+              TextButton(
+                  onPressed: () {
+                    log("connect  ==== ${bluetoothDevice?.name}");
+                    bluetoothDevice?.connect();
                   },
-                  child: Text('Scan'),
-                ),
-                InkWell(
-                  onTap: () {
-                    List<int> user = 'username1\n\n\n'.codeUnits;
-                    Uint8List bytes = Uint8List.fromList([...user]);
-                    bluetoothDevice?.printBytes(bytes: bytes);
-                  },
-                  child: Container(
-                    child: Text('print'),
-                    padding: EdgeInsets.all(8),
-                    color: Colors.red,
-                  ),
-                ),
-                InkWell(
-                  onTap: () {
-
+                  child: const Text('connect')),
+              TextButton(
+                  onPressed: () {
+                    log("connect  ==== ${bluetoothDevice?.name}");
                     bluetoothDevice?.disconnect();
                   },
-                  child: Container(
-                    child: Text('disconnect'),
-                    padding: EdgeInsets.all(8),
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    ..._devices.map((BluetoothDevice e) {
-                      return InkWell(
-                        onTap: () async {
-                          await e.connect();
-                          bluetoothDevice = e;
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(e.name),
-                          width: 200,
-                          decoration: const BoxDecoration(
-                            border:
-                                Border(bottom: BorderSide(color: Colors.grey)),
-                          ),
-                        ),
-                      );
-                    }).toList()
-                  ],
-                ),
-              ),
-            )
-          ],
-        ),
-      ),
+                  child: const Text('disconnect')),
+              TextButton(
+                  onPressed: () {
+                    List<int> list = 'username=zwj\n\n\n'.codeUnits;
+                    Uint8List bytes = Uint8List.fromList(list);
+                    Uint8List bytes2 = Uint8List.fromList([0x1D, 0x21, 8]);
+                    bluetoothDevice?.printBytes(
+                        bytes: bytes2,
+                        progress: (int total, int progress) {
+                          log("progress2 = $progress  total  == $total");
+                        });
+                    log("connect  ==== ${bluetoothDevice?.name}");
+                    bluetoothDevice?.printBytes(
+                        bytes: bytes,
+                        progress: (int total, int progress) {
+                          log("progress = $progress  total  == $total");
+                        });
+                  },
+                  child: const Text('print')),
+              ..._devices.map((e) {
+                return InkWell(
+                    onTap: () => bluetoothDevice = e,
+                    child: Container(
+                      child: Text("${e.name}=="),
+                      padding: const EdgeInsets.all(8),
+                    ));
+              })
+            ],
+          )),
     );
   }
 }

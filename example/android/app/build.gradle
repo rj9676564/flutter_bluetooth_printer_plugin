@@ -35,7 +35,7 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "id.flutter.plugins.flutter_bluetooth_printer_example"
-        minSdkVersion 16
+        minSdkVersion 18
         targetSdkVersion 30
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -48,6 +48,7 @@ android {
             signingConfig signingConfigs.debug
         }
     }
+    namespace 'id.flutter.plugins.flutter_bluetooth_printer_example'
 }
 
 flutter {

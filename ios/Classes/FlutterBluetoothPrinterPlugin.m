@@ -97,7 +97,7 @@
       @try {
           FlutterStandardTypedData *arg = [call arguments];
           NSData *data = [arg data];
-          
+
           [Manager write:data progress:^(NSUInteger total, NSUInteger progress) {
               NSDictionary *res = @{@"total": @(total), @"progress": @(progress)};
               [self->_channel invokeMethod:@"onPrintingProgress" arguments:res];
@@ -171,7 +171,7 @@
     [Manager scanForPeripheralsWithServices:nil options:nil discover:^(CBPeripheral * _Nullable peripheral, NSDictionary<NSString *,id> * _Nullable advertisementData, NSNumber * _Nullable RSSI) {
         if (peripheral.name != nil) {
             [self.scannedPeripherals setObject:peripheral forKey:[[peripheral identifier] UUIDString]];
-            
+
             NSDictionary *device = [self deviceToMap:peripheral];
             [self->_channel invokeMethod:@"onDiscovered" arguments:device];
         }

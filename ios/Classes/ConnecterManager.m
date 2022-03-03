@@ -42,6 +42,7 @@ static dispatch_once_t once;
         currentConnMethod = BLUETOOTH;
         [self initConnecter:currentConnMethod];
     }
+    // [self initConnecter:currentConnMethod];
     [_bleConnecter didUpdateState:state];
 }
 
