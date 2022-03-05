@@ -51,9 +51,9 @@ public class FlutterBluetoothPrinterPlugin implements FlutterPlugin, ActivityAwa
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
         channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "id.flutter.plugins/bluetooth_printer");
         channel.setMethodCallHandler(this);
-//        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        BluetoothManager mBluetoothManager = (BluetoothManager) flutterPluginBinding.getApplicationContext().getSystemService(Context.BLUETOOTH_SERVICE);
-        bluetoothAdapter = mBluetoothManager.getAdapter();
+       bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        // BluetoothManager mBluetoothManager = (BluetoothManager) flutterPluginBinding.getApplicationContext().getSystemService(Context.BLUETOOTH_SERVICE);
+        // bluetoothAdapter = mBluetoothManager.getAdapter();
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         flutterPluginBinding.getApplicationContext().registerReceiver(receiver, filter);
     }
