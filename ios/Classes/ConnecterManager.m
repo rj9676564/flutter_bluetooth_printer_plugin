@@ -38,10 +38,10 @@ static dispatch_once_t once;
  *  @param state 蓝牙状态
  */
 -(void)didUpdateState:(void(^)(NSInteger state))state {
-    if (_bleConnecter == nil) {
+//    if (_bleConnecter == nil) {
         currentConnMethod = BLUETOOTH;
         [self initConnecter:currentConnMethod];
-    }
+//    }
     // [self initConnecter:currentConnMethod];
     [_bleConnecter didUpdateState:state];
 }

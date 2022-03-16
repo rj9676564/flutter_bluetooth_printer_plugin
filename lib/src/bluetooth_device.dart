@@ -26,7 +26,7 @@ class BluetoothDevice {
     return _plugin._channel.invokeMethod('disconnect');
   }
 
-  Future<void> printBytes({
+  Future<dynamic> printBytes({
     required Uint8List bytes,
     void Function(int total, int progress)? progress,
   }) async {
@@ -47,12 +47,13 @@ class BluetoothDevice {
       }
     });
 
-    await _plugin._channel.invokeMethod(
+    var result =  await _plugin._channel.invokeMethod(
       'print',
       bytes,
     );
 
     await completer.future;
+    return result;
   }
 
   Future<void> printImage({

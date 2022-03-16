@@ -102,7 +102,15 @@
               NSDictionary *res = @{@"total": @(total), @"progress": @(progress)};
               [self->_channel invokeMethod:@"onPrintingProgress" arguments:res];
           } receCallBack:^(NSData * _Nullable data) {
-              result(@(YES));
+            uint8_t * bytePtr = (uint8_t  * )[data bytes];
+            NSInteger totalData = [data length] / sizeof(uint8_t);
+            NSMutableArray* dataArray = [NSMutableArray array];
+            for (int i = 0 ; i < totalData; i ++){
+//                   NSLog(@"data byte chunk : %d", bytePtr[i]);
+                   NSInteger byteInterger = [[NSString stringWithFormat:@"%d",bytePtr[i]] integerValue];
+                   [dataArray addObject:@(byteInterger)];
+               }
+              result(dataArray);
           }];
      } @catch(FlutterError *e) {
          result(e);
@@ -168,6 +176,7 @@
 }
 
 - (void) startScan {
+ 
     [Manager scanForPeripheralsWithServices:nil options:nil discover:^(CBPeripheral * _Nullable peripheral, NSDictionary<NSString *,id> * _Nullable advertisementData, NSNumber * _Nullable RSSI) {
         if (peripheral.name != nil) {
             [self.scannedPeripherals setObject:peripheral forKey:[[peripheral identifier] UUIDString]];
