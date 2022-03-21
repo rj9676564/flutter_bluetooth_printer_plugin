@@ -20,6 +20,7 @@
     NSData * _responseData;
     void (^conReturnBlock)(CBCentralManager *central ,CBPeripheral *peripheral,NSString *stateStr);
     void (^printSuccess)(BOOL sizeValue);
+    void (^responseBlock)(NSData *returnData);
     void (^bluetoothListArr)(NSMutableArray *blueToothArray);
     BOOL valuePrint;
 }
@@ -70,7 +71,7 @@
  *
  *  @param str 遵循通信协议的设定
  */
-- (void)sendDataWithString:(NSString *)str andInfoData:(NSData *)infoData;
+- (void)sendDataWithString:(NSString *)str andInfoData:(NSData *)infoData response:(void(^)(NSData* responseData))printBlock;
 
 /**
  *  展示蓝牙返回的结果
@@ -88,6 +89,7 @@
  * @param stateStr: 连接成功--SUCCESS，连接失败--ERROR，断开连接--DISCONNECT,无蓝牙信息--BLUEDISS
  **/
 -(void)connectInfoReturn:(void(^)(CBCentralManager *central ,CBPeripheral *peripheral ,NSString *stateStr))myBlock;
+
 /**
  * 打印字典信息
  @param stateStr:typeNum 1-本地商品打印，本地服务--0 ，易商城--2

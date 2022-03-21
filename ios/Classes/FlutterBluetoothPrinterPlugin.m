@@ -1,7 +1,9 @@
 #import "FlutterBluetoothPrinterPlugin.h"
 #import "ConnecterManager.h"
-
-@interface FlutterBluetoothPrinterPlugin ()
+#import "BlueToothManager.h"
+@interface FlutterBluetoothPrinterPlugin (){
+    BlueToothManager * _manager;
+}
 @property(nonatomic, retain) NSObject<FlutterPluginRegistrar> *registrar;
 @property(nonatomic, retain) FlutterMethodChannel *channel;
 @property(nonatomic) NSMutableDictionary *scannedPeripherals;
@@ -27,6 +29,8 @@
 - (instancetype)init
 {
     self = [super init];
+
+    _manager = [BlueToothManager getInstance];
     return self;
 }
 
@@ -67,14 +71,25 @@
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
   if ([@"startScan" isEqualToString:call.method]) {
       [self.scannedPeripherals removeAllObjects];
-      [self initialize:^(bool isAvailable) {
-          if (isAvailable){
-              [self startScan];
-              result(@(YES));
-          } else {
-              result(@(NO));
+//      [self initialize:^(bool isAvailable) {
+//          if (isAvailable){
+//              [self startScan];
+//              result(@(YES));
+//          } else {
+//              result(@(NO));
+//          }
+//      }];
+      [_manager getBlueListArray:^(NSMutableArray *blueToothArray) {
+          for (CBPeripheral* peripheral in blueToothArray) {
+              NSDictionary *device = [self deviceToMap:blueToothArray.lastObject];
+              [self.scannedPeripherals setObject:peripheral forKey:device[@"address"]];
+              [self->_channel invokeMethod:@"onDiscovered" arguments:device];
           }
+//          self.scannedPeripherals = [blueToothArray mutableCopy];
+//          NSDictionary *device = [self deviceToMap:blueToothArray.lastObject];
+          
       }];
+      [_manager startScan];
   } else if ([@"isConnected" isEqualToString:call.method]){
       bool res = [self connectedDevice] != nil;
       result(@(res));
@@ -98,20 +113,19 @@
           FlutterStandardTypedData *arg = [call arguments];
           NSData *data = [arg data];
           
-          [Manager write:data progress:^(NSUInteger total, NSUInteger progress) {
-              NSDictionary *res = @{@"total": @(total), @"progress": @(progress)};
-              [self->_channel invokeMethod:@"onPrintingProgress" arguments:res];
-          } receCallBack:^(NSData * _Nullable data) {
-            uint8_t * bytePtr = (uint8_t  * )[data bytes];
-            NSInteger totalData = [data length] / sizeof(uint8_t);
-            NSMutableArray* dataArray = [NSMutableArray array];
-            for (int i = 0 ; i < totalData; i ++){
-//                   NSLog(@"data byte chunk : %d", bytePtr[i]);
-                   NSInteger byteInterger = [[NSString stringWithFormat:@"%d",bytePtr[i]] integerValue];
-                   [dataArray addObject:@(byteInterger)];
-               }
+          [_manager sendDataWithString:nil andInfoData:data response:^(NSData *responseData) {
+              NSLog(@"bluetooth manager %@",responseData);
+              uint8_t * bytePtr = (uint8_t  * )[responseData bytes];
+              NSInteger totalData = [responseData length] / sizeof(uint8_t);
+              NSMutableArray* dataArray = [NSMutableArray array];
+              for (int i = 0 ; i < totalData; i ++){
+                NSInteger byteInterger = [[NSString stringWithFormat:@"%d",bytePtr[i]] integerValue];
+                [dataArray addObject:@(byteInterger)];
+              }
+              NSLog(@"flutter plugin 回复数据 %ld",dataArray.count);
               result(dataArray);
           }];
+          
      } @catch(FlutterError *e) {
          result(e);
      }
@@ -119,7 +133,8 @@
       NSDictionary *device = [call arguments];
       @try {
         CBPeripheral *peripheral = [_scannedPeripherals objectForKey:[device objectForKey:@"address"]];
-        
+        _connectedDevice=peripheral;
+        [_manager stopScan];
         __weak typeof(self) weakSelf = self;
         self.state = ^(ConnectState state) {
             switch (state) {
@@ -142,9 +157,9 @@
             }
             [weakSelf updateConnectState:state];
         };
-        
-        [Manager connectPeripheral:peripheral options:nil timeout:2 connectBlack: self.state];
-        
+//        _prez
+//        [Manager connectPeripheral:peripheral options:nil timeout:2 connectBlack: self.state];
+          [_manager connectPeripheralWith:peripheral];
       } @catch(FlutterError *e) {
         result(e);
       }
@@ -162,10 +177,10 @@
   } else if ([@"disconnect" isEqualToString:call.method]){
       @try {
         if (_connectedDevice != nil){
-            [[Manager bleConnecter] closePeripheral:_connectedDevice];
+            [_manager cancelPeripheralWith:_connectedDevice];
             _connectedDevice = nil;
         }
-        
+          
         result(@(YES));
       } @catch(FlutterError *e) {
         result(e);

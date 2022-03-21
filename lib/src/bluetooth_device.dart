@@ -51,8 +51,9 @@ class BluetoothDevice {
       'print',
       bytes,
     );
+    print("printBytes result: $result");
 
-    await completer.future;
+    // await completer.future;
     return result;
   }
 
