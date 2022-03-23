@@ -23,6 +23,7 @@ class BluetoothDevice {
 
   bool get isConnected => _isConnected;
   Future<void> disconnect() async {
+    _isConnected=false;
     return _plugin._channel.invokeMethod('disconnect');
   }
 
