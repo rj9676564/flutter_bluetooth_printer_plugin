@@ -81,7 +81,7 @@
     if([peripheral.identifier.UUIDString isEqualToString:uuidstring]){
         NSLog(@"相同设备，直接连接");
     
-        [self connectPeripheralWith:peripheral];
+        [self connectPeripheralWith:peripheral connectBlack:nil];
     }
     if (bluetoothListArr) {
         bluetoothListArr(_peripheralList);
@@ -99,13 +99,13 @@
 }
 
 //连接设备
--(void)connectPeripheralWith:(CBPeripheral *)per
-{
+-(void)connectPeripheralWith:(CBPeripheral *)per connectBlack:(void(^_Nullable)(ConnectState state)) connectState{
     if (per!=nil) {
         valuePrint = NO;
         _per = nil;
         _char = nil;
         _readChar = nil;
+        connectBlack =  [connectState copy];
         per.delegate=self;
         [_manager connectPeripheral:per options:nil];
     }
@@ -114,8 +114,8 @@
 //连接设备失败
 -(void)centralManager:(CBCentralManager *)central didFailToConnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error
 {
-    if (conReturnBlock) {
-        conReturnBlock(central,peripheral,@"ERROR");
+    if (connectBlack) {
+        connectBlack(CONNECT_STATE_FAILT);
     }
     //    NSLog(@">>>连接到名称为（%@）的设备-失败,原因:%@",[peripheral name],[error localizedDescription]);
 }
@@ -123,8 +123,8 @@
 //设备断开连接
 -(void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error
 {
-    if (conReturnBlock) {
-        conReturnBlock(central,peripheral,@"DISCONNECT");
+    if (connectBlack) {
+        connectBlack(CONNECT_STATE_DISCONNECT);
     }
     //    NSLog(@">>>外设连接断开连接 %@: %@\n", [peripheral name], [error localizedDescription]);
 }
@@ -134,15 +134,14 @@
 {
     _per = peripheral;
     _per.delegate = self;
-
+    if (connectBlack!=nil) {
+        connectBlack(CONNECT_STATE_CONNECTED);
+    }
     [peripheral discoverServices:@[[CBUUID UUIDWithString:@"49535343-fe7d-4ae5-8fa9-9fafd205e455"]]];
 //    [peripheral discoverServices:nil];
     
 }
-//成功回调
--(void)connectInfoReturn:(void(^)(CBCentralManager *central ,CBPeripheral *peripheral,NSString *stateStr))myBlock{
-    conReturnBlock = [myBlock copy];
-}
+
 //扫描设备的服务
 -(void)peripheral:(CBPeripheral *)peripheral didDiscoverServices:(NSError *)error
 {
@@ -161,8 +160,8 @@
                 [_per discoverCharacteristics:nil forService:service];
             }
         }
-        if (conReturnBlock) {
-            conReturnBlock(nil,peripheral,@"SUCCESS");
+        if (connectBlack!=nil) {
+            connectBlack(CONNECT_STATE_CONNECTED);
         }
     }
 }
@@ -257,10 +256,10 @@
     [self openNotify];
      if (_per==nil||_char==nil) {
         valuePrint = NO;
-        if (conReturnBlock) {
-            conReturnBlock(nil ,nil,@"BLUEDISS");
-            return;
-        }
+//        if (conReturnBlock) {
+//            conReturnBlock(nil ,nil,@"BLUEDISS");
+//            return;
+//        }
     }else{
         valuePrint = YES;
         if (str==nil||str.length==0) {
