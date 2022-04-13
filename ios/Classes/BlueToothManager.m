@@ -341,7 +341,12 @@
 //断开连接
 -(void)cancelPeripheralWith:(CBPeripheral *)per
 {
-    [_manager cancelPeripheralConnection:_per];
+    @try{
+        [_manager cancelPeripheralConnection:_per];
+    }@catch(NSException *e){
+        NSLog(@"erro ====== %@",e);
+    }
+    
     
 }
 

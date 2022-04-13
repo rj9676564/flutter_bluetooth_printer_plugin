@@ -124,10 +124,9 @@
                 [dataArray addObject:@(byteInterger)];
               }
               NSLog(@"flutter plugin 回复数据 %ld",dataArray.count);
-//              result(dataArray);
+              result(dataArray);
           }];
-          result(data);
-          
+
      } @catch(FlutterError *e) {
          result(e);
      }
