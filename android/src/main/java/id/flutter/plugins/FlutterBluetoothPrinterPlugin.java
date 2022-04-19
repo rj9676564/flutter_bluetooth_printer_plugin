@@ -59,6 +59,9 @@ public class FlutterBluetoothPrinterPlugin implements FlutterPlugin, ActivityAwa
         channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "id.flutter.plugins/bluetooth_printer");
         channel.setMethodCallHandler(this);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        // 监视蓝牙设备与APP连接的状态
+        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         // BluetoothManager mBluetoothManager = (BluetoothManager) flutterPluginBinding.getApplicationContext().getSystemService(Context.BLUETOOTH_SERVICE);
         // bluetoothAdapter = mBluetoothManager.getAdapter();
         mContext = flutterPluginBinding.getApplicationContext();
@@ -71,12 +74,23 @@ public class FlutterBluetoothPrinterPlugin implements FlutterPlugin, ActivityAwa
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
+            Log.e("FlutterBluetoothPrinter", "onReceive: " + action);
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 final Map<String, Object> map = deviceToMap(device);
                 Log.d(TAG, "onReceive: " + map);
                 channel.invokeMethod("onDiscovered", map);
                 discoveredDevices.put(device.getAddress(), device);
+            }
+            if(BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)){
+                final HashMap<String, Object> map = new HashMap<>();
+                map.put("id", 1);
+                channel.invokeMethod("onStateChanged", map);
+            }
+            if(BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)){
+                final HashMap<String, Object> map = new HashMap<>();
+                map.put("id", 3);
+                channel.invokeMethod("onStateChanged", map);
             }
         }
     };
@@ -106,6 +120,8 @@ public class FlutterBluetoothPrinterPlugin implements FlutterPlugin, ActivityAwa
             case "startScan": {
                 mContext.unregisterReceiver(receiver);
                 IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+                filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+                filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
                 mContext.registerReceiver(receiver, filter);
                 if (!bluetoothAdapter.isDiscovering()) {
                     discoveredDevices.clear();
