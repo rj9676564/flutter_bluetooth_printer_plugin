@@ -8,7 +8,7 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <CoreBluetooth/CoreBluetooth.h>
-
+#import "ConnecterBlock.h"
 @interface BlueToothManager : NSObject<CBCentralManagerDelegate,CBPeripheralDelegate>
 {
     CBCentralManager * _manager;
@@ -18,7 +18,8 @@
     
     NSMutableArray * _peripheralList;
     NSData * _responseData;
-    void (^conReturnBlock)(CBCentralManager *central ,CBPeripheral *peripheral,NSString *stateStr);
+    void (^connectBlack)(ConnectState state);
+//connectBlack:(void(^_Nullable)(ConnectState state)) connectState
     void (^printSuccess)(BOOL sizeValue);
     void (^responseBlock)(NSData *returnData);
     void (^bluetoothListArr)(NSMutableArray *blueToothArray);
@@ -54,7 +55,7 @@
  *
  *  @param per 选择的设备
  */
--(void)connectPeripheralWith:(CBPeripheral *)per;
+-(void)connectPeripheralWith:(CBPeripheral *)per connectBlack:(void(^_Nullable)(ConnectState state)) connectState;
 
 /**
  *  打开通知
@@ -83,14 +84,9 @@
  *
  *  @param per 连接的per
  */
--(void)cancelPeripheralWith:(CBPeripheral *)per;
-/**
- * 连接蓝牙状态信息回调
- * @param stateStr: 连接成功--SUCCESS，连接失败--ERROR，断开连接--DISCONNECT,无蓝牙信息--BLUEDISS
- **/
--(void)connectInfoReturn:(void(^)(CBCentralManager *central ,CBPeripheral *peripheral ,NSString *stateStr))myBlock;
+-(void)cancelPeripheralWith:(CBPeripheral *)per ;
 
-/**
+/*
  * 打印字典信息
  @param stateStr:typeNum 1-本地商品打印，本地服务--0 ，易商城--2
  **/

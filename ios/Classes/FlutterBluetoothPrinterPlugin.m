@@ -90,6 +90,7 @@
           
       }];
       [_manager startScan];
+      result(@(YES));
   } else if ([@"isConnected" isEqualToString:call.method]){
       bool res = [self connectedDevice] != nil;
       result(@(res));
@@ -102,7 +103,7 @@
       
       result(nil);
   } else if ([@"stopScan" isEqualToString:call.method]){
-      [Manager stopScan];
+      [_manager stopScan];
       result(@(YES));
   } else if ([@"isEnabled" isEqualToString:call.method]){
       [self initialize:^(bool isAvailable) {
@@ -125,7 +126,7 @@
               NSLog(@"flutter plugin 回复数据 %ld",dataArray.count);
               result(dataArray);
           }];
-          
+
      } @catch(FlutterError *e) {
          result(e);
      }
@@ -156,10 +157,10 @@
                     break;
             }
             [weakSelf updateConnectState:state];
-        };
+           };
 //        _prez
 //        [Manager connectPeripheral:peripheral options:nil timeout:2 connectBlack: self.state];
-          [_manager connectPeripheralWith:peripheral];
+          [_manager connectPeripheralWith:peripheral  connectBlack:self.state];
       } @catch(FlutterError *e) {
         result(e);
       }
