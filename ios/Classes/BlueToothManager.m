@@ -191,10 +191,6 @@
             }
         }
     }
-    [self sendDataWithString:nil andInfoData:[@"\n\n\n\n\n\n\n\n" dataUsingEncoding:NSUTF8StringEncoding] response:^(NSData *responseData) {
-        NSLog(@"bluetooth manager %@",responseData);
-    }];
-//    [self sendDataWithString:nil data:["success"]];
 }
 
 //获取特征值的信息
