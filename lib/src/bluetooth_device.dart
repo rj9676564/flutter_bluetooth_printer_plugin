@@ -23,7 +23,7 @@ class BluetoothDevice {
 
   bool get isConnected => _isConnected;
   Future<void> disconnect() async {
-    _isConnected=false;
+    _isConnected = false;
     return _plugin._channel.invokeMethod('disconnect');
   }
 
@@ -48,7 +48,7 @@ class BluetoothDevice {
       }
     });
 
-    var result =  await _plugin._channel.invokeMethod(
+    var result = await _plugin._channel.invokeMethod(
       'print',
       bytes,
     );
@@ -88,49 +88,5 @@ class BluetoothDevice {
       bytes: Uint8List.fromList(data),
       progress: progress,
     );
-  }
-
-  Future<void> printPdf({
-    required Uint8List data,
-    int pageNumber = 1,
-    PaperSize paperSize = PaperSize.mm58,
-    void Function(int total, int progress)? progress,
-  }) async {
-    final bytes = await _rasterPdf(
-      data: data,
-      pageNumber: pageNumber,
-      width: paperSize.width,
-    );
-
-    final image = img.decodeJpg(bytes);
-    if (image != null) {
-      return printImage(
-        image: image,
-        paperSize: paperSize,
-        progress: progress,
-      );
-    }
-
-    throw Exception('Invalid JPG Image');
-  }
-
-  Future<List<int>> _rasterPdf({
-    required Uint8List data,
-    required int pageNumber,
-    required int width,
-  }) async {
-    final doc = await rd.PdfDocument.openData(Uint8List.fromList(data));
-    final page = await doc.getPage(pageNumber);
-
-    double ratio = width / page.width;
-    int height = (page.height * ratio).ceil();
-
-    final pageImage = await page.render(
-      width: width,
-      height: height,
-      format: rd.PdfPageFormat.JPEG,
-    );
-
-    return pageImage!.bytes;
   }
 }
