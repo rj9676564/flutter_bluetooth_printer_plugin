@@ -15,7 +15,7 @@ dependencies:
   esc_pos_utils_plus: ">=2.0.0 <3.0.0"
 #  pdf: ">=3.0.0 <4.0.0"
 #   native_pdf_renderer: ">=3.0.0 <4.0.0"
-  native_pdf_renderer: ^5.0.0+1
+  # native_pdf_renderer: ^5.0.0+1
 dev_dependencies:
   flutter_test:
     sdk: flutter
