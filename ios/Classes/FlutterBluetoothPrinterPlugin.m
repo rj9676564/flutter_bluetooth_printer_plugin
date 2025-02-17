@@ -10,6 +10,13 @@
 @property(nonatomic) CBPeripheral *connectedDevice;
 @property(nonatomic) bool isAvailable;
 @property(nonatomic) bool isInitialized;
+
+@property (nonatomic,strong) FlutterResult _result;
+
+@property (nonatomic, strong) NSMutableArray *accumulatedDataArray; // 累积数据的数组
+@property (nonatomic, strong) NSTimer *timeoutTimer;               // 定时器
+@property (nonatomic, assign) BOOL isResultCalled;                 // 标记是否已调用result
+
 @end
 
 @implementation FlutterBluetoothPrinterPlugin
@@ -30,7 +37,7 @@
 {
     self = [super init];
 
-    _manager = [BlueToothManager getInstance];
+    
     return self;
 }
 
@@ -68,8 +75,21 @@
     }];
 }
 
+
+// 辅助方法：将 NSData 转换为十六进制字符串
+- (NSString *)hexStringWithData:(NSData *)data {
+    NSMutableString *hexString = [NSMutableString stringWithCapacity:data.length * 2];
+    const unsigned char *bytes = data.bytes;
+    for (NSUInteger i = 0; i < data.length; i++) {
+        [hexString appendFormat:@"%02x", bytes[i]];
+    }
+    return hexString;
+}
+
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    
   if ([@"startScan" isEqualToString:call.method]) {
+      _manager = [BlueToothManager getInstance];
       [self.scannedPeripherals removeAllObjects];
 //      [self initialize:^(bool isAvailable) {
 //          if (isAvailable){
@@ -87,7 +107,6 @@
           }
 //          self.scannedPeripherals = [blueToothArray mutableCopy];
 //          NSDictionary *device = [self deviceToMap:blueToothArray.lastObject];
-          
       }];
       [_manager startScan];
       result(@(YES));
@@ -111,20 +130,31 @@
       }];
   } else if ([@"print" isEqualToString:call.method]){
       @try {
+          self._result = result;
           FlutterStandardTypedData *arg = [call arguments];
           NSData *data = [arg data];
           
           [_manager sendDataWithString:nil andInfoData:data response:^(NSData *responseData) {
-              NSLog(@"bluetooth manager %@",responseData);
-              uint8_t * bytePtr = (uint8_t  * )[responseData bytes];
-              NSInteger totalData = [responseData length] / sizeof(uint8_t);
-              NSMutableArray* dataArray = [NSMutableArray array];
-              for (int i = 0 ; i < totalData; i ++){
-                NSInteger byteInterger = [[NSString stringWithFormat:@"%d",bytePtr[i]] integerValue];
-                [dataArray addObject:@(byteInterger)];
-              }
-              NSLog(@"flutter plugin 回复数据 %ld",dataArray.count);
-              result(dataArray);
+              NSLog(@"Bluetooth manager response data: %@", responseData);
+                      
+                      // 1. 解析数据到数组
+                      uint8_t *bytePtr = (uint8_t *)[responseData bytes];
+                      NSInteger totalData = [responseData length] / sizeof(uint8_t);
+                      NSMutableArray *dataArray = [NSMutableArray array];
+                      for (int i = 0; i < totalData; i++) {
+                          NSInteger byteInteger = [[NSString stringWithFormat:@"%d", bytePtr[i]] integerValue];
+                          [dataArray addObject:@(byteInteger)];
+                      }
+                      
+                      // 2. 将本次数据累积到全局数组
+                      if (!self.accumulatedDataArray) {
+                          self.accumulatedDataArray = [NSMutableArray array];
+                      }
+                      [self.accumulatedDataArray addObjectsFromArray:dataArray];
+                      NSLog(@"当前累积数据量: %ld", self.accumulatedDataArray.count);
+                      
+                      // 3. 重置定时器（每次收到新数据时，重新开始10秒倒计时）
+                      [self resetTimer];
           }];
 
      } @catch(FlutterError *e) {
@@ -243,6 +273,44 @@
         NSDictionary *dict = [NSDictionary dictionaryWithObjectsAndKeys:ret,@"id",nil];
         [self->_channel invokeMethod:@"onStateChanged" arguments:dict];
     });
+}
+
+
+// 重置定时器
+- (void)resetTimer {
+    // 取消之前的定时器
+    if (self.timeoutTimer) {
+        [self.timeoutTimer invalidate];
+        self.timeoutTimer = nil;
+    }
+    
+    // 4. 创建新的定时器（10秒后触发）
+    self.timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:10.0
+                                                         target:self
+                                                       selector:@selector(handleTimeout)
+                                                       userInfo:nil
+                                                        repeats:NO];
+}
+
+// 定时器触发时的处理
+- (void)handleTimeout {
+    // 确保只调用一次result
+    if (!self.isResultCalled) {
+        self.isResultCalled = YES;
+        NSLog(@"10秒内无新数据，最终数据量: %ld", self.accumulatedDataArray.count);
+        
+        // 调用result并传递累积的数据
+        if (self.accumulatedDataArray) {
+            self._result(self.accumulatedDataArray);
+        } else {
+            self._result(@[]); // 返回空数组表示无数据
+        }
+        
+        // 清理资源
+        self.accumulatedDataArray = nil;
+        [self.timeoutTimer invalidate];
+        self.timeoutTimer = nil;
+    }
 }
 
 @end
