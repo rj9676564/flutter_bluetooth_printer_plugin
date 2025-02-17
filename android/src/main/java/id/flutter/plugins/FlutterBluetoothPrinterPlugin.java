@@ -5,7 +5,6 @@ import static android.os.Build.VERSION.SDK_INT;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -13,10 +12,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Base64;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -27,7 +24,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -82,12 +78,12 @@ public class FlutterBluetoothPrinterPlugin implements FlutterPlugin, ActivityAwa
                 channel.invokeMethod("onDiscovered", map);
                 discoveredDevices.put(device.getAddress(), device);
             }
-            if(BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)){
+            if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
                 final HashMap<String, Object> map = new HashMap<>();
                 map.put("id", 1);
                 channel.invokeMethod("onStateChanged", map);
             }
-            if(BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)){
+            if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
                 final HashMap<String, Object> map = new HashMap<>();
                 map.put("id", 3);
                 channel.invokeMethod("onStateChanged", map);
@@ -221,8 +217,8 @@ public class FlutterBluetoothPrinterPlugin implements FlutterPlugin, ActivityAwa
                         });
                     }
                 });
-                break;
             }
+            break;
 
             case "print": {
                 if (connectedDevice == null) {
@@ -233,47 +229,56 @@ public class FlutterBluetoothPrinterPlugin implements FlutterPlugin, ActivityAwa
                 final byte[] bytes = (byte[]) call.arguments;
                 AsyncTask.execute(() -> {
                     new Thread() {
-                        /// Thread main code
                         public void run() {
-                            byte[] buffer = new byte[1024];
-                            int bytes;
+                            final long startTime = System.currentTimeMillis();
+                            final long timeout = 20000; // 总超时时间10秒
+                            final ArrayList<byte[]> allData = new ArrayList<>();
 
                             try {
-                                bytes = inputStream.read(buffer);
+                                // 先写入数据并通知进度
+                                writeStream.write(bytes);
+                                writeStream.flush();
+                                // 开始读取数据
+                                int seconds = 0;
 
-                                if (SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
-                                    byte[] resultBytes = Arrays.copyOf(buffer, bytes);
-                                    String s = new String(resultBytes);
-                                    Log.e("printer2", "" + Arrays.toString(resultBytes));
-                                    Log.e("printer2", "" + s);
-                                    result.success(resultBytes);
-                                }else{
-
+                                byte[] resultBytes = readSteamData(inputStream);
+                                allData.add(resultBytes);
+                                while (System.currentTimeMillis() - startTime < timeout) {
+                                    if (inputStream.available() > 0) {
+                                        byte[] resultBytesTemp = readSteamData(inputStream);
+                                        allData.add(resultBytesTemp);
+                                        seconds = 0;
+                                    } else {
+                                        seconds++;
+                                    }
+                                    Thread.sleep(1000);
+                                    if (seconds >= 5) {
+                                        break;
+                                    }
                                 }
-                            } catch (IOException e) {
+
+                                // 处理最终结果
+                                final byte[] finalResult;
+                                if (!allData.isEmpty()) {
+                                    finalResult = concatenateByteArrays(allData);
+                                } else {
+                                    finalResult = new byte[0];
+                                }
+
+                                // 只调用一次 result
+                                new Handler(Looper.getMainLooper()).post(() -> {
+                                    if (finalResult.length == 0) {
+//                                        result.error("error", "No data received", null);
+                                    } else {
+                                        result.success(finalResult);
+                                    }
+                                });
+
+                            } catch (Exception e) {
                                 e.printStackTrace();
                             }
                         }
                     }.start();
-                    try {
-                        writeStream.write(bytes);
-                        writeStream.flush();
-
-                        new Handler(Looper.getMainLooper()).post(() -> {
-//                            result.success(true);
-
-                            final HashMap<String, Object> map = new HashMap<>();
-                            map.put("total", bytes.length);
-                            map.put("progress", bytes.length);
-                            channel.invokeMethod("onPrintingProgress", map);
-                        });
-
-                    } catch (Exception e) {
-                        new Handler(Looper.getMainLooper()).post(() -> {
-                            result.error("error", e.getMessage(), null);
-                        });
-                        e.printStackTrace();
-                    }
                 });
             }
             break;
@@ -282,6 +287,34 @@ public class FlutterBluetoothPrinterPlugin implements FlutterPlugin, ActivityAwa
                 result.notImplemented();
                 break;
         }
+    }
+
+    private byte[] readSteamData(InputStream inputStream) throws IOException {
+        byte[] bufferFirst = new byte[1024];
+        int readBytesFirst = inputStream.read(bufferFirst);
+
+        if (readBytesFirst > 0) {
+            byte[] resultBytes = Arrays.copyOf(bufferFirst, readBytesFirst);
+            String s = new String(resultBytes);
+            Log.e("printer2", "" + s);
+            return resultBytes;
+        }
+        return null;
+    }
+
+    // 辅助方法：合并字节数组
+    private byte[] concatenateByteArrays(ArrayList<byte[]> arrays) {
+        int totalLength = 0;
+        for (byte[] array : arrays) {
+            totalLength += array.length;
+        }
+        byte[] result = new byte[totalLength];
+        int offset = 0;
+        for (byte[] array : arrays) {
+            System.arraycopy(array, 0, result, offset, array.length);
+            offset += array.length;
+        }
+        return result;
     }
 
     private void isEnabled(MethodChannel.Result result) {
