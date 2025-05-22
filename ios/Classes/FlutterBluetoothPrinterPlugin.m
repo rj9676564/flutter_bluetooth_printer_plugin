@@ -136,25 +136,46 @@
           
           [_manager sendDataWithString:nil andInfoData:data response:^(NSData *responseData) {
               NSLog(@"Bluetooth manager response data: %@", responseData);
-                      
-                      // 1. 解析数据到数组
-                      uint8_t *bytePtr = (uint8_t *)[responseData bytes];
-                      NSInteger totalData = [responseData length] / sizeof(uint8_t);
-                      NSMutableArray *dataArray = [NSMutableArray array];
-                      for (int i = 0; i < totalData; i++) {
-                          NSInteger byteInteger = [[NSString stringWithFormat:@"%d", bytePtr[i]] integerValue];
-                          [dataArray addObject:@(byteInteger)];
-                      }
-                      
-                      // 2. 将本次数据累积到全局数组
-                      if (!self.accumulatedDataArray) {
-                          self.accumulatedDataArray = [NSMutableArray array];
-                      }
-                      [self.accumulatedDataArray addObjectsFromArray:dataArray];
-                      NSLog(@"当前累积数据量: %ld", self.accumulatedDataArray.count);
-                      
-                      // 3. 重置定时器（每次收到新数据时，重新开始10秒倒计时）
-                      [self resetTimer];
+                 
+                 // 1. Parse data to array
+                 uint8_t *bytePtr = (uint8_t *)[responseData bytes];
+                 NSInteger totalData = [responseData length] / sizeof(uint8_t);
+                 NSMutableArray *dataArray = [NSMutableArray array];
+                 for (int i = 0; i < totalData; i++) {
+                     NSInteger byteInteger = [[NSString stringWithFormat:@"%d", bytePtr[i]] integerValue];
+                     [dataArray addObject:@(byteInteger)];
+                 }
+                 
+                 // 2. Check if data starts with the reset sequence [2, 116, 114, 101, 110, 100, 105, 116, 1]
+                 NSArray *resetSequence = @[@2, @116, @114, @101, @110, @100, @105, @116, @1];
+                 BOOL isResetSequence = NO;
+                 if (dataArray.count >= resetSequence.count) {
+                     isResetSequence = YES;
+                     for (NSUInteger i = 0; i < resetSequence.count; i++) {
+                         if (![dataArray[i] isEqual:resetSequence[i]]) {
+                             isResetSequence = NO;
+                             break;
+                         }
+                     }
+                 }
+                 
+                 // 3. Initialize accumulatedDataArray if nil
+                 if (!self.accumulatedDataArray) {
+                     self.accumulatedDataArray = [NSMutableArray array];
+                 }
+                 
+                 // 4. Clear accumulatedDataArray if reset sequence is detected
+                 if (isResetSequence) {
+                     [self.accumulatedDataArray removeAllObjects];
+                     NSLog(@"Reset sequence detected, cleared accumulatedDataArray");
+                 }
+                 
+                 // 5. Append new data to accumulatedDataArray
+                 [self.accumulatedDataArray addObjectsFromArray:dataArray];
+                 NSLog(@"当前累积数据量: %ld", self.accumulatedDataArray.count);
+                 
+                 // 6. Reset timer (restart 10-second countdown on new data)
+                 [self resetTimer];
           }];
 
      } @catch(FlutterError *e) {
@@ -294,6 +315,7 @@
 
 // 定时器触发时的处理
 - (void)handleTimeout {
+    NSLog(@"handleTimeout 10秒内无新数据，最终数据量: %ld", self.accumulatedDataArray.count);
     // 确保只调用一次result
     if (!self.isResultCalled) {
         self.isResultCalled = YES;
@@ -310,6 +332,7 @@
         self.accumulatedDataArray = nil;
         [self.timeoutTimer invalidate];
         self.timeoutTimer = nil;
+        self.isResultCalled = NO;
     }
 }
 
