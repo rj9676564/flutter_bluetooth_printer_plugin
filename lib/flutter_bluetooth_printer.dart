@@ -8,12 +8,13 @@ library bluetooth_printer;
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:esc_pos_utils_plus/esc_pos_utils.dart';
+
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bluetooth_printer/flutter_bluetooth_printer.dart';
 import 'package:image/image.dart' as img;
 
-export 'package:esc_pos_utils_plus/esc_pos_utils.dart';
+export 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
 part 'src/bluetooth_device.dart';
 part 'src/bluetooth_printer_plugin.dart';
